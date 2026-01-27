@@ -75,19 +75,18 @@ install_pi_system_deps() {
     echo
     echo -e "${YELLOW}Installiere System-Abhängigkeiten für Raspberry Pi...${NC}"
 
-    # Check if lgpio is available
-    if ! python3 -c "import lgpio" 2>/dev/null; then
-        echo -e "${YELLOW}lgpio nicht gefunden - installiere System-Pakete...${NC}"
+    # Install build dependencies and GPIO packages
+    echo -e "${YELLOW}Installiere System-Pakete (benötigt sudo)...${NC}"
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq \
+        swig \
+        python3-dev \
+        python3-lgpio \
+        python3-rpi-lgpio \
+        libgpiod-dev \
+        2>/dev/null || true
 
-        # Install required system packages
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq python3-lgpio python3-rpi-lgpio 2>/dev/null || true
-
-        # If system packages not available, the pip package rpi-lgpio should work
-        echo -e "${GREEN}✓ System-Pakete installiert${NC}"
-    else
-        echo -e "${GREEN}✓ lgpio bereits verfügbar${NC}"
-    fi
+    echo -e "${GREEN}✓ System-Pakete installiert${NC}"
 }
 
 # Install package
