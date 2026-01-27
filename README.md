@@ -256,24 +256,21 @@ pytest tests/ -v
 
 ### GPIO-Fehler auf Raspberry Pi
 
-Falls Fehler wie `No module named 'lgpio'`, `No module named 'RPi'` oder
-`command 'swig' failed` auftreten:
+Falls Fehler wie `No module named 'lgpio'`, `cannot find -llgpio` oder
+Kompilierungsfehler auftreten:
 
 ```bash
-# Build-Tools und GPIO-Pakete installieren
+# GPIO-Pakete über apt installieren (nicht pip!)
 sudo apt-get update
-sudo apt-get install swig python3-dev python3-lgpio python3-rpi-lgpio
+sudo apt-get install python3-gpiozero python3-lgpio python3-rpi.gpio
 
-# Dann neu installieren
+# Alte venv löschen und neu installieren
+rm -rf .venv
 ./install.sh
 ```
 
-Bei Raspberry Pi 5 oder neuerem Pi OS wird `lgpio` als Backend verwendet.
-Bei älteren Versionen kann alternativ `RPi.GPIO` installiert werden:
-
-```bash
-sudo apt-get install python3-rpi.gpio
-```
+Das Installationsscript erstellt auf dem Pi eine venv mit `--system-site-packages`,
+damit die System-GPIO-Bibliotheken genutzt werden können.
 
 ### Kein Display / Schwarzer Bildschirm
 

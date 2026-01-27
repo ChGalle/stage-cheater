@@ -55,16 +55,24 @@ create_venv() {
     echo
     echo -e "${YELLOW}Erstelle virtuelle Umgebung...${NC}"
 
+    local venv_opts=""
+
+    # On Raspberry Pi, use system site packages for GPIO libraries
+    if is_raspberry_pi; then
+        venv_opts="--system-site-packages"
+        echo -e "${YELLOW}Raspberry Pi: Nutze System-Pakete für GPIO${NC}"
+    fi
+
     if [ -d "$VENV_DIR" ]; then
         echo -e "${YELLOW}Virtuelle Umgebung existiert bereits${NC}"
         read -p "Neu erstellen? (j/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Jj]$ ]]; then
             rm -rf "$VENV_DIR"
-            python3 -m venv "$VENV_DIR"
+            python3 -m venv $venv_opts "$VENV_DIR"
         fi
     else
-        python3 -m venv "$VENV_DIR"
+        python3 -m venv $venv_opts "$VENV_DIR"
     fi
 
     echo -e "${GREEN}✓ Virtuelle Umgebung erstellt${NC}"
@@ -81,8 +89,11 @@ install_pi_system_deps() {
     sudo apt-get install -y -qq \
         swig \
         python3-dev \
+        python3-gpiozero \
         python3-lgpio \
-        python3-rpi-lgpio \
+        python3-rpi.gpio \
+        python3-pigpio \
+        liblgpio-dev \
         libgpiod-dev \
         2>/dev/null || true
 

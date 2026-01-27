@@ -32,8 +32,9 @@ dependencies = [
 [project.optional-dependencies]
 pi = [
     "gpiozero>=2.0",
-    "rpi-lgpio>=0.4",  # GPIO backend for Raspberry Pi 5 / newer Pi OS
     "pyudev>=0.24",
+    # GPIO backends (lgpio, RPi.GPIO) are installed via system packages
+    # to avoid compilation issues. Use: sudo apt install python3-lgpio
 ]
 dev = [
     "pytest>=7.0",
