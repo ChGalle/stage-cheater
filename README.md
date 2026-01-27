@@ -86,6 +86,20 @@ stage-cheater -f examples/songs/amazing_grace.chopro
 | `-f, --file PATH` | Einzelne ChordPro-Datei anzeigen |
 | `-c, --config PATH` | Pfad zur config.toml |
 
+### USB-Stick vorbereiten
+
+Beispieldaten auf USB-Stick kopieren (erkennt USB-Sticks automatisch):
+
+```bash
+./install.sh --usb
+```
+
+Oder in ein bestimmtes Verzeichnis:
+
+```bash
+./install.sh --usb /media/user/USB-STICK
+```
+
 ### USB-Stick Nutzung
 
 Stage-Cheater erkennt automatisch USB-Sticks mit folgender Struktur:

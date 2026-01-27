@@ -2,6 +2,10 @@
 #
 # Stage-Cheater Installation Script
 #
+# Usage:
+#   ./install.sh          - Full installation
+#   ./install.sh --usb    - Copy example data to USB stick
+#
 
 set -e
 
@@ -9,15 +13,11 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
-
-echo -e "${GREEN}================================${NC}"
-echo -e "${GREEN} Stage-Cheater Installation${NC}"
-echo -e "${GREEN}================================${NC}"
-echo
 
 # Check Python version
 check_python() {
@@ -157,6 +157,135 @@ EOF
     echo "  journalctl -u stage-cheater -f       # Logs"
 }
 
+# Find mounted USB sticks
+find_usb_sticks() {
+    local usb_sticks=()
+
+    # Check common mount points
+    for base in /media /mnt /run/media; do
+        if [ -d "$base" ]; then
+            # Look for mounted directories
+            for user_dir in "$base"/*; do
+                if [ -d "$user_dir" ]; then
+                    # Check if it's a mount point with different device
+                    for mount_dir in "$user_dir"/*; do
+                        if [ -d "$mount_dir" ] && mountpoint -q "$mount_dir" 2>/dev/null; then
+                            usb_sticks+=("$mount_dir")
+                        fi
+                    done
+                    # Also check if user_dir itself is a mount
+                    if mountpoint -q "$user_dir" 2>/dev/null; then
+                        usb_sticks+=("$user_dir")
+                    fi
+                fi
+            done
+        fi
+    done
+
+    printf '%s\n' "${usb_sticks[@]}"
+}
+
+# Copy example data to USB stick
+copy_to_usb() {
+    echo -e "${GREEN}================================${NC}"
+    echo -e "${GREEN} Beispieldaten auf USB kopieren${NC}"
+    echo -e "${GREEN}================================${NC}"
+    echo
+
+    # Find USB sticks
+    mapfile -t usb_sticks < <(find_usb_sticks)
+
+    if [ ${#usb_sticks[@]} -eq 0 ]; then
+        echo -e "${RED}Kein USB-Stick gefunden!${NC}"
+        echo
+        echo "Bitte USB-Stick einstecken und erneut versuchen."
+        echo "Oder Zielpfad direkt angeben:"
+        echo "  ./install.sh --usb /pfad/zum/ziel"
+        exit 1
+    fi
+
+    local target=""
+
+    if [ ${#usb_sticks[@]} -eq 1 ]; then
+        target="${usb_sticks[0]}"
+        echo -e "Gefundener USB-Stick: ${BLUE}$target${NC}"
+        read -p "Beispieldaten hierhin kopieren? (J/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            echo "Abgebrochen."
+            exit 0
+        fi
+    else
+        echo "Mehrere USB-Sticks gefunden:"
+        echo
+        for i in "${!usb_sticks[@]}"; do
+            echo "  $((i+1))) ${usb_sticks[$i]}"
+        done
+        echo
+        read -p "Auswahl (1-${#usb_sticks[@]}): " choice
+
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#usb_sticks[@]} ]; then
+            target="${usb_sticks[$((choice-1))]}"
+        else
+            echo -e "${RED}Ungültige Auswahl${NC}"
+            exit 1
+        fi
+    fi
+
+    copy_examples_to "$target"
+}
+
+# Copy example files to target directory
+copy_examples_to() {
+    local target="$1"
+
+    echo
+    echo -e "${YELLOW}Kopiere Beispieldaten nach: $target${NC}"
+
+    # Create directory structure
+    mkdir -p "$target/songs"
+    mkdir -p "$target/playlists"
+
+    # Copy example songs
+    if [ -d "$SCRIPT_DIR/examples/songs" ]; then
+        cp "$SCRIPT_DIR/examples/songs"/*.chopro "$target/songs/" 2>/dev/null || true
+        echo -e "${GREEN}✓ Beispiel-Songs kopiert${NC}"
+    fi
+
+    # Copy example playlist
+    if [ -f "$SCRIPT_DIR/examples/setlist.txt" ]; then
+        cp "$SCRIPT_DIR/examples/setlist.txt" "$target/playlists/"
+        echo -e "${GREEN}✓ Beispiel-Playlist kopiert${NC}"
+    fi
+
+    # Copy example config
+    if [ -f "$SCRIPT_DIR/examples/config.toml" ]; then
+        cp "$SCRIPT_DIR/examples/config.toml" "$target/"
+        echo -e "${GREEN}✓ Beispiel-Konfiguration kopiert${NC}"
+    fi
+
+    echo
+    echo -e "${GREEN}================================${NC}"
+    echo -e "${GREEN} Fertig!${NC}"
+    echo -e "${GREEN}================================${NC}"
+    echo
+    echo "USB-Stick Struktur:"
+    echo
+    echo "  $target/"
+    echo "  ├── config.toml        <- Einstellungen anpassen"
+    echo "  ├── songs/"
+    echo "  │   ├── amazing_grace.chopro"
+    echo "  │   └── house_of_the_rising_sun.chopro"
+    echo "  └── playlists/"
+    echo "      └── setlist.txt    <- Song-Reihenfolge anpassen"
+    echo
+    echo "Nächste Schritte:"
+    echo "  1. Eigene .chopro Dateien in songs/ ablegen"
+    echo "  2. setlist.txt mit gewünschter Reihenfolge anpassen"
+    echo "  3. Optional: config.toml für Display-Einstellungen"
+    echo
+}
+
 # Print usage info
 print_usage() {
     echo
@@ -178,6 +307,9 @@ print_usage() {
     echo "  4. Einzelne Datei:"
     echo "     ./start.sh -f /pfad/zu/song.chopro"
     echo
+    echo "  5. Beispieldaten auf USB-Stick kopieren:"
+    echo "     ./install.sh --usb"
+    echo
     echo "Steuerung:"
     echo "  Pfeiltasten / Space / PageUp/Down - Navigation"
     echo "  +/- - Zoom"
@@ -185,9 +317,24 @@ print_usage() {
     echo
 }
 
+# Show help
+show_help() {
+    echo "Stage-Cheater Installations-Script"
+    echo
+    echo "Verwendung:"
+    echo "  ./install.sh              Vollständige Installation"
+    echo "  ./install.sh --usb        Beispieldaten auf USB-Stick kopieren"
+    echo "  ./install.sh --usb PATH   Beispieldaten in Verzeichnis kopieren"
+    echo "  ./install.sh --help       Diese Hilfe anzeigen"
+    echo
+}
+
 # Main installation
-main() {
-    cd "$SCRIPT_DIR"
+main_install() {
+    echo -e "${GREEN}================================${NC}"
+    echo -e "${GREEN} Stage-Cheater Installation${NC}"
+    echo -e "${GREEN}================================${NC}"
+    echo
 
     if ! check_python; then
         echo
@@ -201,6 +348,33 @@ main() {
     create_launcher
     setup_systemd
     print_usage
+}
+
+# Main entry point
+main() {
+    cd "$SCRIPT_DIR"
+
+    case "${1:-}" in
+        --help|-h)
+            show_help
+            ;;
+        --usb)
+            if [ -n "${2:-}" ] && [ -d "$2" ]; then
+                copy_examples_to "$2"
+            else
+                copy_to_usb
+            fi
+            ;;
+        "")
+            main_install
+            ;;
+        *)
+            echo -e "${RED}Unbekannte Option: $1${NC}"
+            echo
+            show_help
+            exit 1
+            ;;
+    esac
 }
 
 main "$@"
