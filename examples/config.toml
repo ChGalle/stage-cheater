@@ -1,0 +1,31 @@
+# Stage-Cheater Configuration
+# Copy this file to your USB stick as config.toml
+
+[display]
+zoom = 1.0
+font_size = 32
+font_color = "#FFFFFF"
+background_color = "#000000"
+chord_color = "#FFFF00"
+# Rotation in degrees: 0, 90, 180, 270
+rotation = 0
+
+[input.keyboard]
+next_page = ["RIGHT", "PAGEDOWN", "SPACE"]
+prev_page = ["LEFT", "PAGEUP"]
+next_song = ["DOWN"]
+prev_song = ["UP"]
+quit = ["ESCAPE", "q"]
+zoom_in = ["PLUS", "KP_PLUS", "EQUALS"]
+zoom_out = ["MINUS", "KP_MINUS"]
+
+[input.gpio]
+# Set enabled = true to use foot pedal via GPIO
+enabled = false
+next_page_pin = 17
+prev_page_pin = 27
+
+[system.gpio]
+# GPIO pins for shutdown/restart (requires 3 second hold)
+shutdown_pin = 22
+restart_pin = 23
