@@ -252,6 +252,37 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
+## Fehlerbehebung
+
+### GPIO-Fehler auf Raspberry Pi
+
+Falls Fehler wie `No module named 'lgpio'` oder `No module named 'RPi'` auftreten:
+
+```bash
+# System-Pakete installieren
+sudo apt-get update
+sudo apt-get install python3-lgpio python3-rpi-lgpio
+
+# Oder: Neu installieren mit GPIO-Unterstützung
+./install.sh
+```
+
+Bei Raspberry Pi 5 oder neuerem Pi OS wird `lgpio` als Backend verwendet.
+Bei älteren Versionen kann alternativ `RPi.GPIO` installiert werden:
+
+```bash
+sudo apt-get install python3-rpi.gpio
+```
+
+### Kein Display / Schwarzer Bildschirm
+
+Für Autostart ohne angemeldeten Benutzer muss die DISPLAY-Variable gesetzt sein:
+
+```bash
+export DISPLAY=:0
+./start.sh
+```
+
 ## Lizenz
 
 MIT

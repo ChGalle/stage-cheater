@@ -70,6 +70,26 @@ create_venv() {
     echo -e "${GREEN}✓ Virtuelle Umgebung erstellt${NC}"
 }
 
+# Install system dependencies on Raspberry Pi
+install_pi_system_deps() {
+    echo
+    echo -e "${YELLOW}Installiere System-Abhängigkeiten für Raspberry Pi...${NC}"
+
+    # Check if lgpio is available
+    if ! python3 -c "import lgpio" 2>/dev/null; then
+        echo -e "${YELLOW}lgpio nicht gefunden - installiere System-Pakete...${NC}"
+
+        # Install required system packages
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq python3-lgpio python3-rpi-lgpio 2>/dev/null || true
+
+        # If system packages not available, the pip package rpi-lgpio should work
+        echo -e "${GREEN}✓ System-Pakete installiert${NC}"
+    else
+        echo -e "${GREEN}✓ lgpio bereits verfügbar${NC}"
+    fi
+}
+
 # Install package
 install_package() {
     echo
@@ -79,6 +99,7 @@ install_package() {
 
     if is_raspberry_pi; then
         echo -e "${YELLOW}Raspberry Pi erkannt - installiere mit GPIO-Unterstützung${NC}"
+        install_pi_system_deps
         pip install -e ".[pi]" --quiet
     else
         pip install -e "." --quiet

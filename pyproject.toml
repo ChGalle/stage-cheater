@@ -32,6 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 pi = [
     "gpiozero>=2.0",
+    "rpi-lgpio>=0.4",  # GPIO backend for Raspberry Pi 5 / newer Pi OS
     "pyudev>=0.24",
 ]
 dev = [
