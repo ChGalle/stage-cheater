@@ -29,7 +29,8 @@ class StageCheater:
         )
         self.playlist: Playlist | None = None
         self._running = False
-        self._quit_requested = False
+        self._shutdown_requested = False
+        self._restart_requested = False
 
     def setup(self) -> None:
         """Initialize the application."""
@@ -149,18 +150,24 @@ class StageCheater:
     def _on_shutdown(self) -> None:
         """Handle shutdown request."""
         self._running = False
-        self._quit_requested = True
+        self._shutdown_requested = True
 
     def _on_restart(self) -> None:
         """Handle restart request."""
         self._running = False
-        self._quit_requested = True
+        self._restart_requested = True
 
     def _cleanup(self) -> None:
         """Cleanup resources."""
         self.input_handler.cleanup()
         self.system_control.cleanup()
         self.display.quit()
+
+        # Execute system shutdown/restart after cleanup
+        if self._shutdown_requested:
+            SystemControl.shutdown()
+        elif self._restart_requested:
+            SystemControl.restart()
 
 
 def parse_args() -> argparse.Namespace:
