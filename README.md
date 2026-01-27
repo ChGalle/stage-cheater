@@ -20,13 +20,29 @@ Raspberry Pi-basierter Bühnen-Teleprompter für Songtexte und Akkorde im ChordP
 - Python 3.11 oder höher
 - Linux (getestet auf Raspberry Pi OS)
 
-### Standard-Installation
+### Schnelle Installation (empfohlen)
 
 ```bash
 # Repository klonen
 git clone <repository-url>
 cd stage-cheater
 
+# Installationsscript ausführen
+./install.sh
+```
+
+Das Script erkennt automatisch ob es auf einem Raspberry Pi läuft und installiert
+entsprechend GPIO-Unterstützung. Auf dem Pi wird optional ein Systemd-Service
+für Autostart angeboten.
+
+Nach der Installation:
+```bash
+./start.sh -d examples/songs
+```
+
+### Manuelle Installation
+
+```bash
 # Virtuelle Umgebung erstellen und aktivieren
 python3 -m venv .venv
 source .venv/bin/activate
