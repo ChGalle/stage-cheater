@@ -1,5 +1,0 @@
-# Example setlist for Stage-Cheater
-# Each line is a filename (relative to songs directory)
-
-amazing_grace.chopro
-house_of_the_rising_sun.chopro
