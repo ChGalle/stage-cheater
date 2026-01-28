@@ -273,6 +273,7 @@ FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install build dependencies
 RUN apt-get -y update && \
     apt-get -y install --no-install-recommends \
         git vim parted \
@@ -281,8 +282,10 @@ RUN apt-get -y update && \
         binfmt-support ca-certificates fdisk gpg pigz arch-test \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Raspberry Pi GPG key
-RUN curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg
+# Download and install Raspberry Pi keyring properly
+RUN curl -fsSL http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2021.1.1+rpt1_all.deb -o /tmp/keyring.deb && \
+    dpkg -i /tmp/keyring.deb && \
+    rm /tmp/keyring.deb
 
 COPY . /pi-gen/
 VOLUME [ "/pi-gen/work", "/pi-gen/deploy"]
