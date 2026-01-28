@@ -258,6 +258,40 @@ cp -r "${STAGE_DIR}/files/"* "${ROOTFS_DIR}/tmp/files/"
 COPY_SCRIPT
 chmod +x "$STAGE_DIR/00-copy-files.sh"
 
+# Fix GPG key issue in Docker build
+if [ "$USE_DOCKER" = "1" ]; then
+    echo "Patche Dockerfile für aktuelle GPG-Keys..."
+
+    # Create custom Dockerfile that updates keyrings
+    if [ ! -f Dockerfile.orig ]; then
+        cp Dockerfile Dockerfile.orig
+    fi
+
+    cat > Dockerfile <<'DOCKERFILE'
+ARG BASE_IMAGE=debian:bookworm
+FROM ${BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get -y update && \
+    apt-get -y install --no-install-recommends \
+        git vim parted \
+        quilt coreutils qemu-user-static debootstrap zerofree zip dosfstools e2fsprogs\
+        libarchive-tools libcap2-bin rsync grep udev xz-utils curl xxd file kmod bc \
+        binfmt-support ca-certificates fdisk gpg pigz arch-test \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Raspberry Pi GPG key
+RUN curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg
+
+COPY . /pi-gen/
+VOLUME [ "/pi-gen/work", "/pi-gen/deploy"]
+DOCKERFILE
+
+    # Force rebuild of Docker image
+    docker rmi pi-gen 2>/dev/null || true
+fi
+
 # Build
 echo
 echo "Starte Image-Build..."
