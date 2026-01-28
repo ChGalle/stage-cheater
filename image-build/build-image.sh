@@ -23,6 +23,14 @@ echo " Stage-Cheater Image Builder"
 echo "==================================="
 echo
 
+# Handle --clean flag
+if [ "${1:-}" = "--clean" ]; then
+    echo "Lösche pi-gen Verzeichnis..."
+    rm -rf "$BUILD_DIR"
+    echo "Fertig. Starte Build erneut ohne --clean"
+    exit 0
+fi
+
 # Check if running as root for non-docker build
 if [ "$USE_DOCKER" != "1" ] && [ "$EUID" -ne 0 ]; then
     echo "Für Build ohne Docker: sudo ./build-image.sh"
@@ -33,16 +41,21 @@ fi
 # Clone pi-gen if not exists
 if [ ! -d "$BUILD_DIR" ]; then
     echo "Klone pi-gen..."
-    git clone --depth 1 https://github.com/RPi-Distro/pi-gen.git "$BUILD_DIR"
+    git clone --branch arm64 https://github.com/RPi-Distro/pi-gen.git "$BUILD_DIR"
 fi
 
 cd "$BUILD_DIR"
 
-# Create config
+# Clean previous build
+if [ -d "work" ]; then
+    echo "Räume vorherigen Build auf..."
+    rm -rf work
+fi
+
+# Create config (ohne RELEASE - pi-gen nutzt den Default des Branches)
 echo "Erstelle Konfiguration..."
 cat > config <<EOF
 IMG_NAME=stage-cheater
-RELEASE=bookworm
 DEPLOY_ZIP=1
 LOCALE_DEFAULT=de_DE.UTF-8
 KEYBOARD_KEYMAP=de
