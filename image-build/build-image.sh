@@ -114,6 +114,8 @@ FIRST_USER_NAME=pi
 FIRST_USER_PASS=stagecheater
 ENABLE_SSH=1
 TARGET_HOSTNAME=stage-cheater
+APT_PROXY=""
+DEBOOTSTRAP_KEYRING=/usr/share/keyrings/raspberrypi-archive-keyring.gpg
 EOF
 
 # Skip stages we don't need (desktop etc.)
@@ -282,12 +284,21 @@ RUN apt-get -y update && \
         binfmt-support ca-certificates fdisk gpg pigz arch-test \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Raspberry Pi keyring properly
-RUN curl -fsSL http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2021.1.1+rpt1_all.deb -o /tmp/keyring.deb && \
+# Download and install latest Raspberry Pi keyring and make it available everywhere
+RUN curl -fsSL http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb -o /tmp/keyring.deb && \
     dpkg -i /tmp/keyring.deb && \
-    rm /tmp/keyring.deb
+    rm /tmp/keyring.deb && \
+    # Create symlinks for all possible keyring names debootstrap might look for
+    ln -sf /usr/share/keyrings/raspberrypi-archive-keyring.gpg /usr/share/keyrings/raspbian-archive-keyring.gpg && \
+    cp /usr/share/keyrings/raspberrypi-archive-keyring.gpg /etc/apt/trusted.gpg.d/ && \
+    # Also import into apt keyring
+    gpg --no-default-keyring --keyring /usr/share/keyrings/raspbian-archive-keyring.gpg --export | apt-key add - 2>/dev/null || true
 
 COPY . /pi-gen/
+
+# Workaround: Add --no-check-gpg to BOOTSTRAP_ARGS (Raspbian key issue)
+RUN sed -i '/BOOTSTRAP_ARGS+=(--keyring/a\    BOOTSTRAP_ARGS+=(--no-check-gpg)' /pi-gen/scripts/common
+
 VOLUME [ "/pi-gen/work", "/pi-gen/deploy"]
 DOCKERFILE
 

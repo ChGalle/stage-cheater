@@ -213,9 +213,34 @@ house_of_the_rising_sun.chopro
 
 ### Systemd-Service einrichten
 
+#### Für Raspbian Lite (ohne Desktop):
+
 ```bash
 sudo nano /etc/systemd/system/stage-cheater.service
 ```
+
+```ini
+[Unit]
+Description=Stage-Cheater Teleprompter
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=SDL_RENDER_DRIVER=opengles2
+WorkingDirectory=/home/pi/stage-cheater
+ExecStart=/home/pi/stage-cheater/start.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### Für Raspberry Pi OS mit Desktop:
 
 ```ini
 [Unit]
@@ -272,9 +297,36 @@ rm -rf .venv
 Das Installationsscript erstellt auf dem Pi eine venv mit `--system-site-packages`,
 damit die System-GPIO-Bibliotheken genutzt werden können.
 
-### Kein Display / Schwarzer Bildschirm
+### Raspbian Lite (ohne Desktop)
 
-Für Autostart ohne angemeldeten Benutzer muss die DISPLAY-Variable gesetzt sein:
+Auf Raspbian Lite ohne X11/Desktop müssen SDL-Pakete und Benutzergruppen konfiguriert werden:
+
+```bash
+# SDL2-Pakete installieren
+sudo apt-get install libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-image-2.0-0
+
+# Benutzer zu Video/Render-Gruppen hinzufügen
+sudo usermod -aG video,render,input $USER
+# Danach neu einloggen!
+```
+
+Dann von der **TTY-Konsole** starten (nicht SSH):
+```bash
+./start.sh -d examples/songs
+```
+
+Falls "EGL not initialized" oder ähnliche Fehler auftreten:
+- Unbedingt von TTY starten (Ctrl+Alt+F1), nicht über SSH
+- Die Gruppen-Mitgliedschaft erfordert Neu-Login
+- Alternative: fbdev-Treiber verwenden:
+  ```bash
+  export SDL_VIDEODRIVER=fbdev
+  ./start.sh -d examples/songs
+  ```
+
+### Kein Display / Schwarzer Bildschirm (mit Desktop)
+
+Für Autostart ohne angemeldeten Benutzer mit Desktop/X11:
 
 ```bash
 export DISPLAY=:0

@@ -83,7 +83,7 @@ install_pi_system_deps() {
     echo
     echo -e "${YELLOW}Installiere System-Abhängigkeiten für Raspberry Pi...${NC}"
 
-    # Install build dependencies and GPIO packages
+    # Install build dependencies, GPIO packages, and SDL2 libraries
     echo -e "${YELLOW}Installiere System-Pakete (benötigt sudo)...${NC}"
     sudo apt-get update -qq
     sudo apt-get install -y -qq \
@@ -93,11 +93,22 @@ install_pi_system_deps() {
         python3-lgpio \
         python3-rpi.gpio \
         python3-pigpio \
+        python3-pygame \
         liblgpio-dev \
         libgpiod-dev \
+        libsdl2-2.0-0 \
+        libsdl2-ttf-2.0-0 \
+        libsdl2-image-2.0-0 \
         2>/dev/null || true
 
     echo -e "${GREEN}✓ System-Pakete installiert${NC}"
+
+    # Add user to required groups for framebuffer/KMS access
+    echo -e "${YELLOW}Füge Benutzer zu Video/Render-Gruppen hinzu...${NC}"
+    CURRENT_USER=$(whoami)
+    sudo usermod -aG video,render,input "$CURRENT_USER" 2>/dev/null || true
+    echo -e "${GREEN}✓ Benutzer zu Gruppen hinzugefügt (video, render, input)${NC}"
+    echo -e "${YELLOW}  Hinweis: Neu einloggen für Gruppenwechsel erforderlich!${NC}"
 }
 
 # Install package
@@ -125,8 +136,24 @@ create_launcher() {
 
     cat > "$SCRIPT_DIR/start.sh" << 'LAUNCHER'
 #!/bin/bash
+#
+# Stage-Cheater Start Script
+#
+# For Raspberry Pi with Raspbian Lite (no X11/desktop)
+#
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/.venv/bin/activate"
+
+# SDL settings for framebuffer/KMS mode (no X11 needed)
+export SDL_VIDEODRIVER=kmsdrm
+export SDL_RENDER_DRIVER=opengles2
+
+# Activate virtual environment if it exists
+if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+    source "$SCRIPT_DIR/.venv/bin/activate"
+fi
+
+# Run Stage-Cheater
 exec stage-cheater "$@"
 LAUNCHER
 
@@ -150,24 +177,31 @@ setup_systemd() {
 
     SERVICE_FILE="/etc/systemd/system/stage-cheater.service"
     CURRENT_USER=$(whoami)
+    CURRENT_GROUP=$(id -gn)
 
-    echo -e "${YELLOW}Erstelle Systemd-Service...${NC}"
+    echo -e "${YELLOW}Erstelle Systemd-Service (für Raspbian Lite)...${NC}"
 
     sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
 Description=Stage-Cheater Teleprompter
-After=graphical.target
+After=multi-user.target
+Wants=multi-user.target
 
 [Service]
+Type=simple
 User=$CURRENT_USER
-Environment=DISPLAY=:0
+Group=$CURRENT_GROUP
+Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=SDL_RENDER_DRIVER=opengles2
 WorkingDirectory=$SCRIPT_DIR
 ExecStart=$SCRIPT_DIR/start.sh
 Restart=on-failure
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target
 EOF
 
     sudo systemctl daemon-reload

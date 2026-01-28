@@ -41,3 +41,6 @@ htmlcov/
 Thumbs.db
 PROJECT.md
 CLAUDE.md
+
+# Image builder
+image-build/pi-gen/
