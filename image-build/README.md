@@ -20,12 +20,23 @@ sudo apt install coreutils quilt parted qemu-user-static debootstrap zerofree zi
 
 ## Image bauen
 
-```bash
-# Mit Docker
-USE_DOCKER=1 ./build-image.sh
+### Raspberry Pi 3/4/5 (64-bit, Standard)
 
-# Ohne Docker (als root)
-sudo ./build-image.sh
+```bash
+USE_DOCKER=1 ./build-image.sh
+```
+
+### Raspberry Pi 2B (32-bit)
+
+```bash
+USE_DOCKER=1 ./build-image.sh --pi2
+```
+
+### Ohne Docker (als root)
+
+```bash
+sudo ./build-image.sh           # 64-bit
+sudo ./build-image.sh --pi2     # 32-bit
 ```
 
 Der Build dauert ca. 30-60 Minuten.

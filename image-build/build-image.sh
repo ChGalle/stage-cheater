@@ -9,7 +9,9 @@
 #   - ca. 10GB freier Speicherplatz
 #
 # Verwendung:
-#   ./build-image.sh
+#   ./build-image.sh              # 64-bit für Pi 3/4/5 (Standard)
+#   ./build-image.sh --pi2        # 32-bit für Pi 2B
+#   ./build-image.sh --clean      # Build-Verzeichnis löschen
 #
 
 set -e
@@ -18,18 +20,54 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$SCRIPT_DIR/pi-gen"
 
+# Default: 64-bit für Pi 3/4/5
+PI_BRANCH="arm64"
+PI_ARCH="arm64"
+IMG_SUFFIX=""
+
 echo "==================================="
 echo " Stage-Cheater Image Builder"
 echo "==================================="
 echo
 
-# Handle --clean flag
-if [ "${1:-}" = "--clean" ]; then
-    echo "Lösche pi-gen Verzeichnis..."
-    rm -rf "$BUILD_DIR"
-    echo "Fertig. Starte Build erneut ohne --clean"
-    exit 0
-fi
+# Handle arguments
+for arg in "$@"; do
+    case $arg in
+        --clean)
+            echo "Lösche pi-gen Verzeichnis..."
+            rm -rf "$BUILD_DIR"
+            echo "Fertig. Starte Build erneut ohne --clean"
+            exit 0
+            ;;
+        --pi2|--armhf|--32bit)
+            PI_BRANCH="master"
+            PI_ARCH="armhf"
+            IMG_SUFFIX="-pi2"
+            echo "Build für Raspberry Pi 2B (32-bit armhf)"
+            ;;
+        --pi3|--pi4|--pi5|--arm64|--64bit)
+            PI_BRANCH="arm64"
+            PI_ARCH="arm64"
+            IMG_SUFFIX=""
+            echo "Build für Raspberry Pi 3/4/5 (64-bit arm64)"
+            ;;
+        --help|-h)
+            echo "Verwendung: ./build-image.sh [OPTION]"
+            echo
+            echo "Optionen:"
+            echo "  --pi2, --armhf, --32bit   32-bit Image für Pi 2B"
+            echo "  --pi3, --arm64, --64bit   64-bit Image für Pi 3/4/5 (Standard)"
+            echo "  --clean                    Build-Verzeichnis löschen"
+            echo
+            echo "Umgebungsvariablen:"
+            echo "  USE_DOCKER=1              Mit Docker bauen (empfohlen)"
+            exit 0
+            ;;
+    esac
+done
+
+echo "Architektur: $PI_ARCH"
+echo
 
 # Check if running as root for non-docker build
 if [ "$USE_DOCKER" != "1" ] && [ "$EUID" -ne 0 ]; then
@@ -38,10 +76,21 @@ if [ "$USE_DOCKER" != "1" ] && [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Clone pi-gen if not exists
+# Clone pi-gen if not exists or wrong branch
 if [ ! -d "$BUILD_DIR" ]; then
-    echo "Klone pi-gen..."
-    git clone --branch arm64 https://github.com/RPi-Distro/pi-gen.git "$BUILD_DIR"
+    echo "Klone pi-gen ($PI_BRANCH branch)..."
+    git clone --branch "$PI_BRANCH" https://github.com/RPi-Distro/pi-gen.git "$BUILD_DIR"
+else
+    # Check if correct branch
+    cd "$BUILD_DIR"
+    CURRENT_BRANCH=$(git branch --show-current)
+    if [ "$CURRENT_BRANCH" != "$PI_BRANCH" ]; then
+        echo "Wechsle pi-gen Branch zu $PI_BRANCH..."
+        git fetch origin
+        git checkout "$PI_BRANCH"
+        git pull
+    fi
+    cd "$SCRIPT_DIR"
 fi
 
 cd "$BUILD_DIR"
@@ -55,7 +104,7 @@ fi
 # Create config (ohne RELEASE - pi-gen nutzt den Default des Branches)
 echo "Erstelle Konfiguration..."
 cat > config <<EOF
-IMG_NAME=stage-cheater
+IMG_NAME=stage-cheater${IMG_SUFFIX}
 DEPLOY_ZIP=1
 LOCALE_DEFAULT=de_DE.UTF-8
 KEYBOARD_KEYMAP=de
