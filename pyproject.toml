@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stage-cheater"
+version = "0.1.0"
+description = "Raspberry Pi-based stage teleprompter for displaying song lyrics and chords"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Stage-Cheater Team"}
+]
+keywords = ["teleprompter", "chordpro", "lyrics", "raspberry-pi", "pygame"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+]
+
+dependencies = [
+    "pygame>=2.5",
+]
+
+[project.optional-dependencies]
+pi = [
+    "gpiozero>=2.0",
+    "pyudev>=0.24",
+    # GPIO backends (lgpio, RPi.GPIO) are installed via system packages
+    # to avoid compilation issues. Use: sudo apt install python3-lgpio
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+stage-cheater = "stage_cheater.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
