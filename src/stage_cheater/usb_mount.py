@@ -32,23 +32,27 @@ class USBDataSource:
 
     def _scan(self) -> None:
         """Scan the root path for config, songs, and playlists."""
-        # Look for config file
-        config_file = self.root_path / CONFIG_FILENAME
-        if config_file.exists():
-            self.config_path = config_file
+        try:
+            # Look for config file
+            config_file = self.root_path / CONFIG_FILENAME
+            if config_file.exists():
+                self.config_path = config_file
 
-        # Look for songs directory
-        songs_dir = self.root_path / SONGS_DIRNAME
-        if songs_dir.is_dir():
-            self.songs_path = songs_dir
-        elif self.root_path.is_dir():
-            # If no songs dir, use root as songs path
-            self.songs_path = self.root_path
+            # Look for songs directory
+            songs_dir = self.root_path / SONGS_DIRNAME
+            if songs_dir.is_dir():
+                self.songs_path = songs_dir
+            elif self.root_path.is_dir():
+                # If no songs dir, use root as songs path
+                self.songs_path = self.root_path
 
-        # Look for playlists directory
-        playlists_dir = self.root_path / PLAYLISTS_DIRNAME
-        if playlists_dir.is_dir():
-            self.playlists_path = playlists_dir
+            # Look for playlists directory
+            playlists_dir = self.root_path / PLAYLISTS_DIRNAME
+            if playlists_dir.is_dir():
+                self.playlists_path = playlists_dir
+        except OSError:
+            # Handle I/O errors from stale mount points
+            pass
 
     @property
     def is_valid(self) -> bool:
@@ -86,27 +90,31 @@ def find_usb_mount_points() -> list[Path]:
 
 def _is_likely_usb_mount(path: Path) -> bool:
     """Check if a path is likely a USB mount (simple heuristic)."""
-    if not path.is_dir():
-        return False
-
-    # Ignore hidden directories (like .Spotlight-V100, .TemporaryItems)
-    if path.name.startswith('.'):
-        return False
-
-    # Check if it's a mount point by comparing device IDs
     try:
-        path_stat = path.stat()
-        parent_stat = path.parent.stat()
-        # Different device = mount point
-        if path_stat.st_dev != parent_stat.st_dev:
-            return True
+        if not path.is_dir():
+            return False
+
+        # Ignore hidden directories (like .Spotlight-V100, .TemporaryItems)
+        if path.name.startswith('.'):
+            return False
+
+        # Check if it's a mount point by comparing device IDs
+        try:
+            path_stat = path.stat()
+            parent_stat = path.parent.stat()
+            # Different device = mount point
+            if path_stat.st_dev != parent_stat.st_dev:
+                return True
+        except OSError:
+            pass
+
+        # Fallback: check if the directory has any files
+        try:
+            return any(path.iterdir())
+        except PermissionError:
+            return False
     except OSError:
-        pass
-
-    # Fallback: check if the directory has any files
-    try:
-        return any(path.iterdir())
-    except PermissionError:
+        # Handle I/O errors from stale/disconnected mount points
         return False
 
 
