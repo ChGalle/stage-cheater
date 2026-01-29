@@ -302,8 +302,8 @@ damit die System-GPIO-Bibliotheken genutzt werden können.
 Auf Raspbian Lite ohne X11/Desktop müssen SDL-Pakete und Benutzergruppen konfiguriert werden:
 
 ```bash
-# SDL2-Pakete installieren
-sudo apt-get install libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-image-2.0-0
+# SDL2-Pakete und EGL/OpenGL ES installieren
+sudo apt-get install libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-image-2.0-0 libegl1 libgles2
 
 # Benutzer zu Video/Render-Gruppen hinzufügen
 sudo usermod -aG video,render,input $USER
