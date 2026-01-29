@@ -124,22 +124,37 @@ setup_usb_automount() {
 
     # Create udev rule for USB detection
     sudo tee /etc/udev/rules.d/99-usb-mount.rules > /dev/null << 'EOF'
+# Mount USB and restart stage-cheater on insert
 ACTION=="add", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-mount@%k.service"
-ACTION=="remove", KERNEL=="sd[a-z][0-9]", TAG+="systemd"
+# Stop stage-cheater and unmount on remove
+ACTION=="remove", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-unmount@%k.service"
 EOF
 
-    # Create auto-mount service template
+    # Create auto-mount service template (also restarts stage-cheater)
     sudo tee /etc/systemd/system/usb-mount@.service > /dev/null << 'EOF'
 [Unit]
-Description=Mount USB Drive %i
+Description=Mount USB Drive %i and restart Stage-Cheater
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/mkdir -p /media/usb-%i
 ExecStart=/bin/mount /dev/%i /media/usb-%i -o uid=1000,gid=1000,umask=0022
+ExecStart=/bin/systemctl restart stage-cheater.service
 ExecStop=/bin/umount /media/usb-%i
 ExecStop=/bin/rmdir /media/usb-%i
+EOF
+
+    # Create unmount service template (stops stage-cheater first)
+    sudo tee /etc/systemd/system/usb-unmount@.service > /dev/null << 'EOF'
+[Unit]
+Description=Unmount USB Drive %i and stop Stage-Cheater
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl stop stage-cheater.service
+ExecStart=/bin/umount -l /media/usb-%i
+ExecStart=/bin/rmdir /media/usb-%i
 EOF
 
     # Reload rules
