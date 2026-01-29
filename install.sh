@@ -113,6 +113,42 @@ install_pi_system_deps() {
     echo -e "${YELLOW}  Hinweis: Neu einloggen für Gruppenwechsel erforderlich!${NC}"
 }
 
+# Setup USB auto-mount on Raspberry Pi
+setup_usb_automount() {
+    if ! is_raspberry_pi; then
+        return
+    fi
+
+    echo
+    echo -e "${YELLOW}Richte USB Auto-Mount ein...${NC}"
+
+    # Create udev rule for USB detection
+    sudo tee /etc/udev/rules.d/99-usb-mount.rules > /dev/null << 'EOF'
+ACTION=="add", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-mount@%k.service"
+ACTION=="remove", KERNEL=="sd[a-z][0-9]", TAG+="systemd"
+EOF
+
+    # Create auto-mount service template
+    sudo tee /etc/systemd/system/usb-mount@.service > /dev/null << 'EOF'
+[Unit]
+Description=Mount USB Drive %i
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mkdir -p /media/usb-%i
+ExecStart=/bin/mount /dev/%i /media/usb-%i -o uid=1000,gid=1000,umask=0022
+ExecStop=/bin/umount /media/usb-%i
+ExecStop=/bin/rmdir /media/usb-%i
+EOF
+
+    # Reload rules
+    sudo udevadm control --reload-rules 2>/dev/null || true
+    sudo systemctl daemon-reload
+
+    echo -e "${GREEN}✓ USB Auto-Mount eingerichtet${NC}"
+}
+
 # Install package
 install_package() {
     echo
@@ -413,6 +449,7 @@ main_install() {
     create_venv
     install_package
     create_launcher
+    setup_usb_automount
     setup_systemd
     print_usage
 }
