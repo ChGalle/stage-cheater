@@ -150,6 +150,8 @@ python3-pigpio
 libsdl2-2.0-0
 libsdl2-ttf-2.0-0
 libsdl2-image-2.0-0
+libegl1
+libgles2
 git
 EOF
 
