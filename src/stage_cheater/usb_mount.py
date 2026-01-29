@@ -72,14 +72,14 @@ def find_usb_mount_points() -> list[Path]:
         # under /media/<username>/<device_label>
         for user_dir in base.iterdir():
             if user_dir.is_dir():
-                # Check if this is a user directory containing mounts
-                for mount in user_dir.iterdir():
-                    if mount.is_dir() and _is_likely_usb_mount(mount):
-                        mount_points.append(mount)
-
-                # Or if the user_dir itself is a mount
+                # First check if user_dir itself is a mount point (e.g. /media/usb)
                 if _is_likely_usb_mount(user_dir):
                     mount_points.append(user_dir)
+                else:
+                    # Otherwise check subdirectories (e.g. /media/pi/USBSTICK)
+                    for mount in user_dir.iterdir():
+                        if mount.is_dir() and _is_likely_usb_mount(mount):
+                            mount_points.append(mount)
 
     return mount_points
 
@@ -87,6 +87,10 @@ def find_usb_mount_points() -> list[Path]:
 def _is_likely_usb_mount(path: Path) -> bool:
     """Check if a path is likely a USB mount (simple heuristic)."""
     if not path.is_dir():
+        return False
+
+    # Ignore hidden directories (like .Spotlight-V100, .TemporaryItems)
+    if path.name.startswith('.'):
         return False
 
     # Check if it's a mount point by comparing device IDs
