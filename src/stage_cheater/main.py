@@ -47,11 +47,8 @@ class StageCheater:
         # Load playlist
         self._load_data()
 
-        # Show playlist menu if multiple playlists, otherwise show first song
-        if len(self._playlist_files) > 1:
-            self.menu_controller.open_playlist_menu()
-            self.display.render(self.menu_controller)
-        elif self.playlist and self.playlist.current_song:
+        # Show first song
+        if self.playlist and self.playlist.current_song:
             self.display.set_song(self.playlist.current_song)
 
     def _load_data(self) -> None:
@@ -67,12 +64,13 @@ class StageCheater:
 
         self.playlist_manager = PlaylistManager(songs_path)
 
-        # Try to find playlist files in playlists directory
+        # Try to find playlist files
         self._playlist_files = []
         if self.data_source.playlists_path:
+            self._playlist_files = self.playlist_manager.find_playlist_files()
+            # Also check playlists directory
             for ext in self.playlist_manager.PLAYLIST_EXTENSIONS:
                 self._playlist_files.extend(self.data_source.playlists_path.glob(f"*{ext}"))
-            self._playlist_files = sorted(self._playlist_files, key=lambda p: p.name.lower())
 
         # Build playlist summaries for menu
         playlist_summaries = []
