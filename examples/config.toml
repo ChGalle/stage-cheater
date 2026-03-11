@@ -22,8 +22,18 @@ zoom_out = ["MINUS", "KP_MINUS"]
 [input.gpio]
 # Set enabled = true to use foot pedal via GPIO
 enabled = false
-next_page_pin = 17
-prev_page_pin = 27
+pin_a = 17  # Ring line (GPIO 17)
+pin_b = 27  # Tip line (GPIO 27)
+
+# Diode matrix mode for TC Helicon Switch 3 (3 buttons via 2 GPIOs)
+# Set to true to enable 3-button detection
+diode_matrix = false
+
+# Actions for each switch (used in both simple and diode_matrix mode)
+# Available actions: next_page, prev_page, next_song, prev_song, zoom_in, zoom_out
+switch1_action = "next_page"  # pin_a LOW only
+switch2_action = "prev_page"  # pin_b LOW only
+switch3_action = "next_song"  # both pins LOW (diode_matrix mode only)
 
 [system.gpio]
 # GPIO pins for shutdown/restart (requires 3 second hold)

@@ -1,5 +1,6 @@
 """Input handling for Stage-Cheater (Keyboard + GPIO)."""
 
+import threading
 from enum import Enum, auto
 from typing import Callable
 import pygame
@@ -93,20 +94,55 @@ class KeyboardHandler:
         return Action.NONE
 
 
+# Map action strings to Action enum
+ACTION_MAP = {
+    "next_page": Action.NEXT_PAGE,
+    "prev_page": Action.PREV_PAGE,
+    "next_song": Action.NEXT_SONG,
+    "prev_song": Action.PREV_SONG,
+    "zoom_in": Action.ZOOM_IN,
+    "zoom_out": Action.ZOOM_OUT,
+}
+
+
 class GPIOHandler:
-    """Handle GPIO input for foot pedals (Raspberry Pi only)."""
+    """Handle GPIO input for foot pedals (Raspberry Pi only).
+
+    Supports two modes:
+    - Simple mode: Two independent buttons with callbacks
+    - Diode matrix mode: TC Helicon Switch 3 style, polling-based detection
+    """
+
+    POLL_INTERVAL = 0.02  # 20ms = 50 Hz
 
     def __init__(self, config: Config, on_action: Callable[[Action], None]):
         self.config = config
         self._on_action = on_action
         self._buttons: dict[int, "Button"] = {}
         self._enabled = config.input.gpio.enabled
+        self._diode_matrix = config.input.gpio.diode_matrix
+
+        # For diode matrix mode
+        self._pin_a = None
+        self._pin_b = None
+        self._last_state: tuple[bool, bool] = (False, False)
+        self._poll_thread: threading.Thread | None = None
+        self._stop_polling = threading.Event()
+
+        # Map config action strings to Action enum
+        gpio_config = config.input.gpio
+        self._switch1_action = ACTION_MAP.get(gpio_config.switch1_action, Action.NEXT_PAGE)
+        self._switch2_action = ACTION_MAP.get(gpio_config.switch2_action, Action.PREV_PAGE)
+        self._switch3_action = ACTION_MAP.get(gpio_config.switch3_action, Action.NEXT_SONG)
 
         if self._enabled:
-            self._setup_gpio()
+            if self._diode_matrix:
+                self._setup_diode_matrix()
+            else:
+                self._setup_simple_buttons()
 
-    def _setup_gpio(self) -> None:
-        """Setup GPIO buttons."""
+    def _setup_simple_buttons(self) -> None:
+        """Setup simple two-button mode (legacy)."""
         try:
             from gpiozero import Button
         except ImportError:
@@ -116,18 +152,86 @@ class GPIOHandler:
 
         gpio_config = self.config.input.gpio
 
-        # Setup next page button
-        next_btn = Button(gpio_config.next_page_pin, bounce_time=0.1)
-        next_btn.when_pressed = lambda: self._on_action(Action.NEXT_PAGE)
-        self._buttons[gpio_config.next_page_pin] = next_btn
+        # Setup button A (switch1 action)
+        btn_a = Button(gpio_config.pin_a, bounce_time=0.1)
+        btn_a.when_pressed = lambda: self._on_action(self._switch1_action)
+        self._buttons[gpio_config.pin_a] = btn_a
 
-        # Setup prev page button
-        prev_btn = Button(gpio_config.prev_page_pin, bounce_time=0.1)
-        prev_btn.when_pressed = lambda: self._on_action(Action.PREV_PAGE)
-        self._buttons[gpio_config.prev_page_pin] = prev_btn
+        # Setup button B (switch2 action)
+        btn_b = Button(gpio_config.pin_b, bounce_time=0.1)
+        btn_b.when_pressed = lambda: self._on_action(self._switch2_action)
+        self._buttons[gpio_config.pin_b] = btn_b
+
+    def _setup_diode_matrix(self) -> None:
+        """Setup for TC Helicon Switch 3 (diode matrix mode)."""
+        try:
+            from gpiozero import Button
+        except ImportError:
+            print("Warning: gpiozero not available, GPIO input disabled")
+            self._enabled = False
+            return
+
+        gpio_config = self.config.input.gpio
+
+        # Setup buttons without callbacks - we poll the state
+        self._pin_a = Button(gpio_config.pin_a, pull_up=True, bounce_time=0.05)
+        self._pin_b = Button(gpio_config.pin_b, pull_up=True, bounce_time=0.05)
+
+        # Start polling thread
+        self._stop_polling.clear()
+        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._poll_thread.start()
+
+    def _poll_loop(self) -> None:
+        """Polling loop for diode matrix mode."""
+        import time
+
+        while not self._stop_polling.is_set():
+            self._poll_diode_matrix()
+            time.sleep(self.POLL_INTERVAL)
+
+    def _poll_diode_matrix(self) -> None:
+        """Check both pins and detect which switch was pressed."""
+        if self._pin_a is None or self._pin_b is None:
+            return
+
+        a_pressed = self._pin_a.is_pressed
+        b_pressed = self._pin_b.is_pressed
+        current = (a_pressed, b_pressed)
+
+        # Only react on state change (edge detection)
+        if current != self._last_state:
+            # Detect press (transition from released to pressed)
+            was_pressed = self._last_state
+            self._last_state = current
+
+            # Only trigger on button press, not release
+            if current == (True, True) and was_pressed != (True, True):
+                # Both pressed = Switch 3
+                self._on_action(self._switch3_action)
+            elif current == (True, False) and not was_pressed[0]:
+                # Only A pressed (and A was not pressed before) = Switch 1
+                self._on_action(self._switch1_action)
+            elif current == (False, True) and not was_pressed[1]:
+                # Only B pressed (and B was not pressed before) = Switch 2
+                self._on_action(self._switch2_action)
 
     def cleanup(self) -> None:
         """Cleanup GPIO resources."""
+        # Stop polling thread
+        self._stop_polling.set()
+        if self._poll_thread is not None:
+            self._poll_thread.join(timeout=0.1)
+
+        # Cleanup diode matrix pins
+        if self._pin_a is not None:
+            self._pin_a.close()
+            self._pin_a = None
+        if self._pin_b is not None:
+            self._pin_b.close()
+            self._pin_b = None
+
+        # Cleanup simple button mode
         for button in self._buttons.values():
             button.close()
         self._buttons.clear()

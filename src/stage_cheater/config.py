@@ -31,10 +31,22 @@ class KeyboardInputConfig:
 
 @dataclass
 class GPIOInputConfig:
-    """GPIO input configuration for foot pedals."""
+    """GPIO input configuration for foot pedals.
+
+    Supports two modes:
+    - Simple mode (diode_matrix=False): Two independent buttons, each triggers one action
+    - Diode matrix mode (diode_matrix=True): TC Helicon Switch 3 style, 3 buttons via 2 GPIOs
+      Using diode matrix: SW1=pin_a only, SW2=pin_b only, SW3=both pins
+    """
     enabled: bool = False
-    next_page_pin: int = 17
-    prev_page_pin: int = 27
+    pin_a: int = 17  # Ring line (was next_page_pin)
+    pin_b: int = 27  # Tip line (was prev_page_pin)
+    diode_matrix: bool = False  # True for TC Helicon Switch 3
+
+    # Actions for each switch (diode_matrix mode)
+    switch1_action: str = "next_page"  # Only pin_a LOW
+    switch2_action: str = "prev_page"  # Only pin_b LOW
+    switch3_action: str = "next_song"  # Both pins LOW
 
 
 @dataclass
@@ -95,10 +107,17 @@ class Config:
             )
 
             gpio_data = input_data.get("gpio", {})
+            # Support legacy config keys (next_page_pin/prev_page_pin)
+            pin_a = gpio_data.get("pin_a", gpio_data.get("next_page_pin", config.input.gpio.pin_a))
+            pin_b = gpio_data.get("pin_b", gpio_data.get("prev_page_pin", config.input.gpio.pin_b))
             config.input.gpio = GPIOInputConfig(
                 enabled=gpio_data.get("enabled", config.input.gpio.enabled),
-                next_page_pin=gpio_data.get("next_page_pin", config.input.gpio.next_page_pin),
-                prev_page_pin=gpio_data.get("prev_page_pin", config.input.gpio.prev_page_pin),
+                pin_a=pin_a,
+                pin_b=pin_b,
+                diode_matrix=gpio_data.get("diode_matrix", config.input.gpio.diode_matrix),
+                switch1_action=gpio_data.get("switch1_action", config.input.gpio.switch1_action),
+                switch2_action=gpio_data.get("switch2_action", config.input.gpio.switch2_action),
+                switch3_action=gpio_data.get("switch3_action", config.input.gpio.switch3_action),
             )
 
         if "system" in data and "gpio" in data["system"]:

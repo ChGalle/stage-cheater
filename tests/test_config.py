@@ -75,8 +75,12 @@ class TestGPIOInputConfig:
         """Test default GPIO settings."""
         config = GPIOInputConfig()
         assert config.enabled is False
-        assert config.next_page_pin == 17
-        assert config.prev_page_pin == 27
+        assert config.pin_a == 17
+        assert config.pin_b == 27
+        assert config.diode_matrix is False
+        assert config.switch1_action == "next_page"
+        assert config.switch2_action == "prev_page"
+        assert config.switch3_action == "next_song"
 
 
 class TestSystemGPIOConfig:
@@ -158,6 +162,22 @@ class TestConfig:
             "input": {
                 "gpio": {
                     "enabled": True,
+                    "pin_a": 5,
+                    "pin_b": 6,
+                }
+            }
+        }
+        config = Config.from_dict(data)
+        assert config.input.gpio.enabled is True
+        assert config.input.gpio.pin_a == 5
+        assert config.input.gpio.pin_b == 6
+
+    def test_from_dict_gpio_legacy_keys(self):
+        """Test that legacy GPIO config keys still work."""
+        data = {
+            "input": {
+                "gpio": {
+                    "enabled": True,
                     "next_page_pin": 5,
                     "prev_page_pin": 6,
                 }
@@ -165,8 +185,30 @@ class TestConfig:
         }
         config = Config.from_dict(data)
         assert config.input.gpio.enabled is True
-        assert config.input.gpio.next_page_pin == 5
-        assert config.input.gpio.prev_page_pin == 6
+        assert config.input.gpio.pin_a == 5
+        assert config.input.gpio.pin_b == 6
+
+    def test_from_dict_gpio_diode_matrix(self):
+        """Test creating config with diode matrix (TC Helicon Switch 3) settings."""
+        data = {
+            "input": {
+                "gpio": {
+                    "enabled": True,
+                    "pin_a": 17,
+                    "pin_b": 27,
+                    "diode_matrix": True,
+                    "switch1_action": "prev_page",
+                    "switch2_action": "next_page",
+                    "switch3_action": "next_song",
+                }
+            }
+        }
+        config = Config.from_dict(data)
+        assert config.input.gpio.enabled is True
+        assert config.input.gpio.diode_matrix is True
+        assert config.input.gpio.switch1_action == "prev_page"
+        assert config.input.gpio.switch2_action == "next_page"
+        assert config.input.gpio.switch3_action == "next_song"
 
     def test_from_dict_system_gpio(self):
         """Test creating config with system GPIO settings."""
@@ -214,7 +256,7 @@ shutdown_pin = 25
             assert config.input.keyboard.next_page == ["RIGHT", "n"]
             assert config.input.keyboard.quit == ["ESCAPE"]
             assert config.input.gpio.enabled is True
-            assert config.input.gpio.next_page_pin == 18
+            assert config.input.gpio.pin_a == 18  # legacy key next_page_pin maps to pin_a
             assert config.system_gpio.shutdown_pin == 25
             assert config.data_path == temp_path.parent
         finally:
