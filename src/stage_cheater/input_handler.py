@@ -18,6 +18,12 @@ class Action(Enum):
     ZOOM_IN = auto()
     ZOOM_OUT = auto()
     QUIT = auto()
+    # Menu actions
+    MENU_TOGGLE = auto()
+    MENU_UP = auto()
+    MENU_DOWN = auto()
+    MENU_SELECT = auto()
+    MENU_BACK = auto()
 
 
 # Mapping of key name strings to Pygame key constants
@@ -87,6 +93,26 @@ class KeyboardHandler:
             if key_name in KEY_MAP:
                 self._key_actions[KEY_MAP[key_name]] = Action.ZOOM_OUT
 
+        for key_name in kbd_config.menu_toggle:
+            if key_name in KEY_MAP:
+                self._key_actions[KEY_MAP[key_name]] = Action.MENU_TOGGLE
+
+        for key_name in kbd_config.menu_up:
+            if key_name in KEY_MAP:
+                self._key_actions[KEY_MAP[key_name]] = Action.MENU_UP
+
+        for key_name in kbd_config.menu_down:
+            if key_name in KEY_MAP:
+                self._key_actions[KEY_MAP[key_name]] = Action.MENU_DOWN
+
+        for key_name in kbd_config.menu_select:
+            if key_name in KEY_MAP:
+                self._key_actions[KEY_MAP[key_name]] = Action.MENU_SELECT
+
+        for key_name in kbd_config.menu_back:
+            if key_name in KEY_MAP:
+                self._key_actions[KEY_MAP[key_name]] = Action.MENU_BACK
+
     def handle_event(self, event: pygame.event.Event) -> Action:
         """Handle a Pygame event and return the corresponding action."""
         if event.type == pygame.KEYDOWN:
@@ -102,6 +128,11 @@ ACTION_MAP = {
     "prev_song": Action.PREV_SONG,
     "zoom_in": Action.ZOOM_IN,
     "zoom_out": Action.ZOOM_OUT,
+    "menu_toggle": Action.MENU_TOGGLE,
+    "menu_up": Action.MENU_UP,
+    "menu_down": Action.MENU_DOWN,
+    "menu_select": Action.MENU_SELECT,
+    "menu_back": Action.MENU_BACK,
 }
 
 

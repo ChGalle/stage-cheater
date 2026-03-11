@@ -2,9 +2,12 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
 
 from .chordpro import ChordProParser, Song
+
+if TYPE_CHECKING:
+    from .menu import PlaylistSummary
 
 
 @dataclass
@@ -187,3 +190,57 @@ class PlaylistManager:
         for ext in self.PLAYLIST_EXTENSIONS:
             files.extend(self.data_path.glob(f"*{ext}"))
         return sorted(files, key=lambda p: p.name.lower())
+
+    def get_playlist_summaries(self, playlist_files: list[Path] | None = None) -> list["PlaylistSummary"]:
+        """Get lightweight summaries of all available playlists.
+
+        Args:
+            playlist_files: Optional list of playlist file paths. If None, uses find_playlist_files().
+
+        Returns:
+            List of PlaylistSummary objects for menu display.
+        """
+        from .menu import PlaylistSummary
+
+        if playlist_files is None:
+            playlist_files = self.find_playlist_files()
+
+        summaries = []
+        for path in playlist_files:
+            # Count songs by reading the file
+            song_count = 0
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            song_count += 1
+            except Exception:
+                pass
+
+            summaries.append(PlaylistSummary(
+                name=path.stem,
+                path=path,
+                song_count=song_count
+            ))
+
+        return summaries
+
+    def get_all_songs_summary(self) -> "PlaylistSummary":
+        """Get a summary for 'All Songs' playlist from directory.
+
+        Returns:
+            PlaylistSummary for all ChordPro files in the data directory.
+        """
+        from .menu import PlaylistSummary
+
+        # Count all ChordPro files
+        song_count = 0
+        for ext in ChordProParser.EXTENSIONS:
+            song_count += len(list(self.data_path.glob(f"*{ext}")))
+
+        return PlaylistSummary(
+            name="Alle Songs",
+            path=self.data_path,
+            song_count=song_count
+        )

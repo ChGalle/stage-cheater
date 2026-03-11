@@ -1,10 +1,16 @@
 """Pygame-based display for Stage-Cheater."""
 
+from typing import TYPE_CHECKING
+
 import pygame
 from dataclasses import dataclass
 
 from .config import Config, DisplayConfig, hex_to_rgb
 from .chordpro import Song, SongLine
+from .menu import MenuRenderer
+
+if TYPE_CHECKING:
+    from .menu import MenuController
 
 
 @dataclass
@@ -37,6 +43,7 @@ class Display:
         self._current_song: Song | None = None
         self._pages: list[Page] = []
         self._current_page = 0
+        self._menu_renderer = MenuRenderer()
 
     @property
     def zoom(self) -> float:
@@ -150,8 +157,12 @@ class Display:
             return self._chord_height + self._line_height
         return self._line_height
 
-    def render(self) -> None:
-        """Render the current page of the song."""
+    def render(self, menu_controller: "MenuController | None" = None) -> None:
+        """Render the current page of the song.
+
+        Args:
+            menu_controller: Optional MenuController for rendering menu overlay.
+        """
         if not self._screen or not self._render_surface:
             return
 
@@ -161,24 +172,32 @@ class Display:
 
         if not self._current_song:
             self._render_no_song()
-            self._apply_rotation_and_display()
-            return
+        else:
+            y = self._margin
 
-        y = self._margin
+            # Render title only on first page
+            if self._current_song.title and self._current_page == 0:
+                y = self._render_title(y)
 
-        # Render title only on first page
-        if self._current_song.title and self._current_page == 0:
-            y = self._render_title(y)
+            # Render page indicator
+            self._render_page_indicator()
 
-        # Render page indicator
-        self._render_page_indicator()
+            # Get current page
+            if self._current_page < len(self._pages):
+                page = self._pages[self._current_page]
+                for i in range(page.start_line, page.end_line):
+                    if i < len(self._current_song.lines):
+                        y = self._render_line(self._current_song.lines[i], y)
 
-        # Get current page
-        if self._current_page < len(self._pages):
-            page = self._pages[self._current_page]
-            for i in range(page.start_line, page.end_line):
-                if i < len(self._current_song.lines):
-                    y = self._render_line(self._current_song.lines[i], y)
+        # Render menu overlay if active
+        if menu_controller and menu_controller.is_active:
+            self._menu_renderer.render(
+                self._render_surface,
+                menu_controller,
+                self._width,
+                self._height,
+                self.display_config.font_size
+            )
 
         self._apply_rotation_and_display()
 

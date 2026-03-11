@@ -27,6 +27,12 @@ class KeyboardInputConfig:
     quit: list[str] = field(default_factory=lambda: ["ESCAPE", "q"])
     zoom_in: list[str] = field(default_factory=lambda: ["PLUS", "KP_PLUS"])
     zoom_out: list[str] = field(default_factory=lambda: ["MINUS", "KP_MINUS"])
+    # Menu navigation
+    menu_toggle: list[str] = field(default_factory=lambda: ["TAB", "RETURN"])
+    menu_up: list[str] = field(default_factory=list)  # Uses prev_page keys in menu mode
+    menu_down: list[str] = field(default_factory=list)  # Uses next_page keys in menu mode
+    menu_select: list[str] = field(default_factory=list)  # Uses menu_toggle keys in menu mode
+    menu_back: list[str] = field(default_factory=lambda: ["ESCAPE"])
 
 
 @dataclass
@@ -104,6 +110,11 @@ class Config:
                 quit=keyboard_data.get("quit", config.input.keyboard.quit),
                 zoom_in=keyboard_data.get("zoom_in", config.input.keyboard.zoom_in),
                 zoom_out=keyboard_data.get("zoom_out", config.input.keyboard.zoom_out),
+                menu_toggle=keyboard_data.get("menu_toggle", config.input.keyboard.menu_toggle),
+                menu_up=keyboard_data.get("menu_up", config.input.keyboard.menu_up),
+                menu_down=keyboard_data.get("menu_down", config.input.keyboard.menu_down),
+                menu_select=keyboard_data.get("menu_select", config.input.keyboard.menu_select),
+                menu_back=keyboard_data.get("menu_back", config.input.keyboard.menu_back),
             )
 
             gpio_data = input_data.get("gpio", {})
