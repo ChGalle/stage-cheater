@@ -113,7 +113,7 @@ install_pi_system_deps() {
     echo -e "${YELLOW}  Hinweis: Neu einloggen für Gruppenwechsel erforderlich!${NC}"
 }
 
-# Setup USB auto-mount on Raspberry Pi
+# Setup USB auto-mount on Raspberry Pi using fstab + systemd .path
 setup_usb_automount() {
     if ! is_raspberry_pi; then
         return
@@ -122,46 +122,46 @@ setup_usb_automount() {
     echo
     echo -e "${YELLOW}Richte USB Auto-Mount ein...${NC}"
 
-    # Create udev rule for USB detection
-    sudo tee /etc/udev/rules.d/99-usb-mount.rules > /dev/null << 'EOF'
-# Mount USB and restart stage-cheater on insert
-ACTION=="add", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-mount@%k.service"
-# Stop stage-cheater and unmount on remove
-ACTION=="remove", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-unmount@%k.service"
-EOF
+    # Create mount directory
+    sudo mkdir -p /media/usb
 
-    # Create auto-mount service template (also restarts stage-cheater)
-    sudo tee /etc/systemd/system/usb-mount@.service > /dev/null << 'EOF'
+    # Add fstab entry if not present
+    local FSTAB_ENTRY="LABEL=PROMPTER  /media/usb  vfat  defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022  0  0"
+    if ! grep -q "LABEL=PROMPTER" /etc/fstab 2>/dev/null; then
+        echo "$FSTAB_ENTRY" | sudo tee -a /etc/fstab > /dev/null
+        echo -e "${GREEN}✓ fstab-Eintrag hinzugefügt${NC}"
+    else
+        echo -e "${YELLOW}fstab-Eintrag bereits vorhanden${NC}"
+    fi
+
+    # Create systemd .path unit to watch for USB mount
+    sudo tee /etc/systemd/system/stage-cheater-usb.path > /dev/null << 'EOF'
 [Unit]
-Description=Mount USB Drive %i and restart Stage-Cheater
+Description=Watch for Stage-Cheater USB mount
 
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/mkdir -p /media/usb-%i
-ExecStart=/bin/mount /dev/%i /media/usb-%i -o uid=1000,gid=1000,umask=0022
-ExecStart=/bin/systemctl restart stage-cheater.service
-ExecStop=/bin/umount /media/usb-%i
-ExecStop=/bin/rmdir /media/usb-%i
+[Path]
+PathExists=/media/usb/songs
+Unit=stage-cheater.service
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-    # Create unmount service template (stops stage-cheater first)
-    sudo tee /etc/systemd/system/usb-unmount@.service > /dev/null << 'EOF'
-[Unit]
-Description=Unmount USB Drive %i and stop Stage-Cheater
+    # Remove old udev rules and services if present
+    sudo rm -f /etc/udev/rules.d/99-usb-mount.rules
+    sudo rm -f /etc/systemd/system/usb-mount@.service
+    sudo rm -f /etc/systemd/system/usb-unmount@.service
 
-[Service]
-Type=oneshot
-ExecStart=/bin/systemctl stop stage-cheater.service
-ExecStart=/bin/umount -l /media/usb-%i
-ExecStart=/bin/rmdir /media/usb-%i
-EOF
-
-    # Reload rules
+    # Reload udev rules and systemd
     sudo udevadm control --reload-rules 2>/dev/null || true
     sudo systemctl daemon-reload
 
+    # Enable the .path unit
+    sudo systemctl enable stage-cheater-usb.path 2>/dev/null || true
+
     echo -e "${GREEN}✓ USB Auto-Mount eingerichtet${NC}"
+    echo -e "${YELLOW}  USB-Stick muss Label 'PROMPTER' haben${NC}"
+    echo -e "${YELLOW}  Formatieren mit: sudo mkfs.vfat -n PROMPTER /dev/sdX1${NC}"
 }
 
 # Install package
@@ -237,8 +237,10 @@ setup_systemd() {
     sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
 Description=Stage-Cheater Teleprompter
-After=multi-user.target
+After=multi-user.target media-usb.mount
 Wants=multi-user.target
+BindsTo=media-usb.mount
+PartOf=media-usb.mount
 
 [Service]
 Type=simple

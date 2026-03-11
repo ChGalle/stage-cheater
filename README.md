@@ -88,6 +88,36 @@ stage-cheater -f examples/songs/amazing_grace.chopro
 
 ### USB-Stick vorbereiten
 
+**Wichtig:** Der USB-Stick muss das Volume-Label `PROMPTER` haben.
+
+#### USB-Stick formatieren (einmalig)
+
+Unter Linux:
+```bash
+# Partition identifizieren (z.B. /dev/sdb1)
+lsblk
+
+# Formatieren mit Label (ACHTUNG: Löscht alle Daten!)
+sudo mkfs.vfat -n PROMPTER /dev/sdX1
+```
+
+Unter Windows:
+1. USB-Stick im Explorer rechtsklicken → "Formatieren..."
+2. Dateisystem: FAT32
+3. Volumebezeichnung: `PROMPTER`
+4. "Starten" klicken
+
+Unter macOS:
+```bash
+# Partition identifizieren
+diskutil list
+
+# Formatieren mit Label
+sudo diskutil eraseDisk FAT32 PROMPTER MBRFormat /dev/diskX
+```
+
+#### Beispieldaten kopieren
+
 Beispieldaten auf USB-Stick kopieren (erkennt USB-Sticks automatisch):
 
 ```bash
@@ -102,7 +132,7 @@ Oder in ein bestimmtes Verzeichnis:
 
 ### USB-Stick Nutzung
 
-Stage-Cheater erkennt automatisch USB-Sticks mit folgender Struktur:
+Stage-Cheater erkennt automatisch USB-Sticks mit dem Label `PROMPTER` und folgender Struktur:
 
 ```
 USB-Stick/
@@ -120,6 +150,17 @@ Einfach USB-Stick einstecken und starten:
 ```bash
 stage-cheater
 ```
+
+### USB-Stick austauschen
+
+Da die Erkennung über das Volume-Label erfolgt, kann der USB-Stick jederzeit
+ausgetauscht werden:
+
+1. USB-Stick abziehen → Stage-Cheater stoppt automatisch
+2. Neuen Stick (mit Label `PROMPTER`) einstecken → Stage-Cheater startet automatisch
+
+Es ist keine Konfigurationsänderung nötig. Alle Sticks mit dem Label `PROMPTER`
+werden automatisch unter `/media/usb` gemountet.
 
 ## Steuerung
 

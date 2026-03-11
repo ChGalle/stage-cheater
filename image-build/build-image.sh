@@ -187,8 +187,10 @@ chmod +x /home/pi/stage-cheater/start.sh
 cat > /etc/systemd/system/stage-cheater.service <<'SERVICE'
 [Unit]
 Description=Stage-Cheater Teleprompter
-After=multi-user.target
+After=multi-user.target media-usb.mount
 Wants=multi-user.target
+BindsTo=media-usb.mount
+PartOf=media-usb.mount
 
 [Service]
 Type=simple
@@ -222,26 +224,27 @@ cat >> /etc/rc.local <<'RCLOCAL'
 setterm -blank 0 -powerdown 0 -powersave off </dev/tty1
 RCLOCAL
 
-# Create udev rule for USB auto-mount
-cat > /etc/udev/rules.d/99-usb-mount.rules <<'UDEV'
-ACTION=="add", KERNEL=="sd[a-z][0-9]", TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-mount@%k.service"
-ACTION=="remove", KERNEL=="sd[a-z][0-9]", TAG+="systemd"
-UDEV
+# Create mount directory for USB
+mkdir -p /media/usb
 
-# Create USB mount service
-cat > /etc/systemd/system/usb-mount@.service <<'USBMOUNT'
+# Add fstab entry for USB with label PROMPTER
+echo "LABEL=PROMPTER  /media/usb  vfat  defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022  0  0" >> /etc/fstab
+
+# Create systemd .path unit to watch for USB mount
+cat > /etc/systemd/system/stage-cheater-usb.path <<'PATHUNIT'
 [Unit]
-Description=Mount USB Drive %i
-After=multi-user.target
+Description=Watch for Stage-Cheater USB mount
 
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/mkdir -p /media/usb-%i
-ExecStart=/bin/mount /dev/%i /media/usb-%i -o uid=pi,gid=pi,umask=0022
-ExecStop=/bin/umount /media/usb-%i
-ExecStop=/bin/rmdir /media/usb-%i
-USBMOUNT
+[Path]
+PathExists=/media/usb/songs
+Unit=stage-cheater.service
+
+[Install]
+WantedBy=multi-user.target
+PATHUNIT
+
+# Enable the .path unit
+systemctl enable stage-cheater-usb.path
 
 # Reload systemd
 systemctl daemon-reload
