@@ -227,24 +227,26 @@ RCLOCAL
 # Create mount directory for USB
 mkdir -p /media/usb
 
-# Add fstab entry for USB with label PROMPTER
-echo "LABEL=PROMPTER  /media/usb  vfat  defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022  0  0" >> /etc/fstab
-
-# Create systemd .path unit to watch for USB mount
-cat > /etc/systemd/system/stage-cheater-usb.path <<'PATHUNIT'
+# Create systemd mount unit for USB
+cat > /etc/systemd/system/media-usb.mount <<'MOUNTUNIT'
 [Unit]
-Description=Watch for Stage-Cheater USB mount
+Description=Mount USB Stick PROMPTER
 
-[Path]
-PathExists=/media/usb/songs
-Unit=stage-cheater.service
+[Mount]
+What=LABEL=PROMPTER
+Where=/media/usb
+Type=vfat
+Options=defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022
 
 [Install]
 WantedBy=multi-user.target
-PATHUNIT
+MOUNTUNIT
 
-# Enable the .path unit
-systemctl enable stage-cheater-usb.path
+# Create udev rule to trigger mount/unmount on USB insert/remove
+cat > /etc/udev/rules.d/99-stage-cheater.rules <<'UDEVRULE'
+ACTION=="add", KERNEL=="sd[a-z][0-9]", ENV{ID_FS_LABEL}=="PROMPTER", TAG+="systemd", ENV{SYSTEMD_WANTS}="media-usb.mount"
+ACTION=="remove", KERNEL=="sd[a-z][0-9]", RUN+="/bin/systemctl stop media-usb.mount"
+UDEVRULE
 
 # Reload systemd
 systemctl daemon-reload

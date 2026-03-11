@@ -125,39 +125,40 @@ setup_usb_automount() {
     # Create mount directory
     sudo mkdir -p /media/usb
 
-    # Add fstab entry if not present
-    local FSTAB_ENTRY="LABEL=PROMPTER  /media/usb  vfat  defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022  0  0"
-    if ! grep -q "LABEL=PROMPTER" /etc/fstab 2>/dev/null; then
-        echo "$FSTAB_ENTRY" | sudo tee -a /etc/fstab > /dev/null
-        echo -e "${GREEN}✓ fstab-Eintrag hinzugefügt${NC}"
-    else
-        echo -e "${YELLOW}fstab-Eintrag bereits vorhanden${NC}"
-    fi
-
-    # Create systemd .path unit to watch for USB mount
-    sudo tee /etc/systemd/system/stage-cheater-usb.path > /dev/null << 'EOF'
+    # Create systemd mount unit
+    sudo tee /etc/systemd/system/media-usb.mount > /dev/null << 'EOF'
 [Unit]
-Description=Watch for Stage-Cheater USB mount
+Description=Mount USB Stick PROMPTER
 
-[Path]
-PathExists=/media/usb/songs
-Unit=stage-cheater.service
+[Mount]
+What=LABEL=PROMPTER
+Where=/media/usb
+Type=vfat
+Options=defaults,nofail,x-systemd.device-timeout=5,uid=1000,gid=1000,umask=0022
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    # Remove old udev rules and services if present
+    # Create udev rule to trigger mount/unmount on USB insert/remove
+    sudo tee /etc/udev/rules.d/99-stage-cheater.rules > /dev/null << 'EOF'
+ACTION=="add", KERNEL=="sd[a-z][0-9]", ENV{ID_FS_LABEL}=="PROMPTER", TAG+="systemd", ENV{SYSTEMD_WANTS}="media-usb.mount"
+ACTION=="remove", KERNEL=="sd[a-z][0-9]", RUN+="/bin/systemctl stop media-usb.mount"
+EOF
+
+    # Remove old units and rules
     sudo rm -f /etc/udev/rules.d/99-usb-mount.rules
     sudo rm -f /etc/systemd/system/usb-mount@.service
     sudo rm -f /etc/systemd/system/usb-unmount@.service
+    sudo rm -f /etc/systemd/system/stage-cheater-usb.path
+    sudo systemctl disable stage-cheater-usb.path 2>/dev/null || true
+
+    # Remove old fstab entry if present
+    sudo sed -i '/LABEL=PROMPTER/d' /etc/fstab 2>/dev/null || true
 
     # Reload udev rules and systemd
     sudo udevadm control --reload-rules 2>/dev/null || true
     sudo systemctl daemon-reload
-
-    # Enable the .path unit
-    sudo systemctl enable stage-cheater-usb.path 2>/dev/null || true
 
     echo -e "${GREEN}✓ USB Auto-Mount eingerichtet${NC}"
     echo -e "${YELLOW}  USB-Stick muss Label 'PROMPTER' haben${NC}"
@@ -256,7 +257,7 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=media-usb.mount
 EOF
 
     sudo systemctl daemon-reload
